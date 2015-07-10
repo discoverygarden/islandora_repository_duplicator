@@ -17,8 +17,6 @@ As this is not a module, it should likely be placed in the Drush commands folder
 
 ## Usage
 
-`drush duplicate-repository source_namespace destination_namespace`
-
 Use `drush help duplicate-repository` for more details.
 
 ## Troubleshooting/Issues
