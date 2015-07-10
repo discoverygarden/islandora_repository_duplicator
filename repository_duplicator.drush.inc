@@ -13,26 +13,21 @@ function repository_duplicator_drush_command() {
     'duplicate-repository' => array(
       'description' => dt('Takes objects from one namespace and duplicates them in a different namespace.'),
       'drupal_dependencies' => array('islandora'),
-      'arguments' => array(
-        'source_namespace' => dt('The namespace to copy objects from'),
-        'destination_namespace' => dt('The namespace to use for the new copies.'),
+      'examples' => array('drush -u 1 -v duplicate-repository --source_namespace=islandora --destination_namespace=nowhere'),
+      'options' => array(
+        'source_namespace' => array('description' => dt('The namespace to copy objects from')),
+        'destination_namespace' => array('description' => dt('The namespace to use for the new copies.')),
       ),
-      'required_arguments' => TRUE,
     ),
   );
 }
 
 /**
  * Repository duplication drush command.
- *
- * @param string $source_namespace
- *   The namespace to find objects to duplicate from.
- * @param string destination_namespace
- *   The namespace to create copies in.
  */
-function drush_repository_duplicator_duplicate_repository($source_namespace, $destination_namespace) {
+function drush_repository_duplicator_duplicate_repository() {
   // Set the batch, and then start it.
-  batch_set(repository_duplicator_duplicate_repository_batch($source_namespace, $destination_namespace));
+  batch_set(repository_duplicator_duplicate_repository_batch(drush_get_option('source_namespace'), drush_get_option('destination_namespace')));
   drush_backend_batch_process();
 }
 
@@ -72,10 +67,11 @@ function repository_duplicator_duplicate_repository_batch($source_namespace, $de
  * @param array $context
  *   The batch context array.
  */
-function repository_duplicator_duplicate_repository_batch_operation($source_namespace, $destination_namespace &$context) {
+function repository_duplicator_duplicate_repository_batch_operation($source_namespace, $destination_namespace, &$context) {
   $sandbox = &$context['sandbox'];
   // Establish the connection to tuque; this is where the magic starts.
   $connection = islandora_get_tuque_connection();
+  $repository = $connection->repository;
   // If this is our first pass through the batch operation, the batch context's
   // sandbox will be empty, so we know that we have variables to initialize.
   if (empty($sandbox)) {
@@ -83,17 +79,20 @@ function repository_duplicator_duplicate_repository_batch_operation($source_name
     // how many things are in the batch (total), and whether or not we are
     // done of the batch (finished, also, maybe?).
     $sandbox['current_index'] = 0;
-    $sandbox['total'] = repository_duplicator_get_object_count_from_namespace($connection->repository, $source_namespace);
+    $sandbox['total'] = repository_duplicator_get_object_count_from_namespace($repository, $source_namespace);
     $context['finished'] = $sandbox['total'] === 0 ? 1 : 0;
+    if ($context['finished']) {
+      return;
+    }
   }
   // Grab the next object in the namespace.
-  $objects = repository_duplicator_get_object_set_from_namespace($connection->repository, $source_namespace, $sandbox['current_index']);
+  $object = repository_duplicator_get_object_set_from_namespace($repository, $source_namespace, $sandbox['current_index']);
   // Duplicate the object represented by the return value from the query.
-  $context['message'] = repository_duplicator_duplicate_object($connection->repository, $object[0]['pid']['value'], $destination_namespace);
-  // Finish if this was the last object.
-  $context['finished'] = $sandbox['current_index'] / $sandbox['total'];
+  $context['message'] = repository_duplicator_duplicate_object($repository, $object[0]['pid']['value'], $destination_namespace);
   // Increment the query offset, otherwise.
   $sandbox['current_index']++;
+  // Finish if this was the last object.
+  $context['finished'] = $sandbox['current_index'] / $sandbox['total'];
 }
 
 /**
