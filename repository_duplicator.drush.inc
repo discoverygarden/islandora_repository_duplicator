@@ -270,20 +270,3 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
   // Return a message.
   return "Copied object $pid to $new_object->id.";
 }
-
-/**
- * Copies a property from an old object or datastream to a new one.
- *
- * Used by array_walk() to take an associative array of property names and
- * former values and apply it to a new object or datastream.
- *
- * @param string $former
- *   The former value of the property.
- * @param string $property
- *   The name of the property to apply on the new object.
- * @param object $new
- *   The new object to apply the property to.
- */
-function repository_duplicator_copy_property($former, $property, &$new) {
-  $new->{$property} = $former;
-}
