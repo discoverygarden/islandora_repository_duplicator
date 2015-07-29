@@ -229,13 +229,15 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
   $repository->ingestObject($new_object);
 
   // Iterate through the datastreams.
-  // XXX: In most cases, iterating through datastreams via the object itself is
-  // preferable (e.g., foreach ($former_object as $loaded_datastream)); however,
-  // we MUST copy RELS-INT last or Fedora might yell at us for trying to write
+  // We MUST copy RELS-INT last or Fedora might yell at us for trying to write
   // RELS-INT statements referencing datastreams that don't exist.
-  $datastreams = array_keys($repository->api->a->listDatastreams($pid));
-  if (($dsid = array_search('RELS-INT', $datastreams)) !== FALSE) {
-    unset($datastreams[$dsid]);
+  $datastreams = array();
+  foreach ($former_object as $old_datastream) {
+    if ($old_datastream->id != 'RELS-INT') {
+      $datastreams[] = $old_datastream->id;
+    }
+  }
+  if (isset($former_object['RELS-INT'])) {
     $datastreams[] = 'RELS-INT';
   }
   // We now have just a list of unloaded datastreams, so we'll have to load
