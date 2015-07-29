@@ -225,8 +225,6 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
     // info, segmented ito parts including values.
     $new_object->relationships->add($relationship['predicate']['namespace'], $relationship['predicate']['value'], $relationship['object']['value']);
   }
-  // Ingest the object before we start adding datastreams.
-  $repository->ingestObject($new_object);
 
   // Iterate through the datastreams.
   // We MUST copy RELS-INT last or Fedora might yell at us for trying to write
@@ -265,6 +263,9 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
     // Finally, ingest our fully-realized datastream.
     $new_object->ingestDatastream($new_datastream);
   }
+
+  // Ingest the object at the last possible moment.
+  $repository->ingestObject($new_object);
 
   // Return a message.
   return "Copied object $pid to $new_object->id.";
