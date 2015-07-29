@@ -213,14 +213,10 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
   // that we can manipulate before ingesting properly.
   $new_object = $repository->constructObject($namespace);
 
-  // Set simple properties. The array_walk() method will let us iterate through
-  // the properties we define below, setting them to the new object.
-  $properties_to_set = array(
-    'label' => $former_object->label,
-    'owner' => $former_object->owner,
-    'state' => $former_object->state,
-  );
-  array_walk($properties_to_set, 'repository_duplicator_copy_property', &$new_object);
+  // Set simple properties.
+  $new_object->label = $former_object->label;
+  $new_object->owner = $former_object->owner;
+  $new_object->state = $former_object->state;
 
   // Set the relationships.
   foreach ($former_object->relationships->get() as $relationship) {
@@ -249,24 +245,21 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
     // Next, we construct a new datastream. This datastream is not yet ingested,
     // which will happen after it is set up.
     $new_datastream = $new_object->constructDatastream($former_datastream->id, $former_datastream->controlGroup);
-    // This works the same as the array_walk for the object properties.
-    $properties_to_set = array(
-      'label' => $former_datastream->label,
-      'mimetype' => $former_datastream->mimetype,
-      'state' => $former_datastream->state,
-      'versionable' => $former_datastream->versionable,
-    );
     // Inline (X)ML and (M)anaged datastreams store datastream 'content', while
     // (R)edirect and (E)xternal-referenced datastreams store a datastream
     // 'url', so we need to make that distinction here.
     if ($former_datastream->controlGroup === 'X' || 'M') {
       // References to the old PID should be replaced with the new PID.
-      $properties_to_set['content'] = str_replace($pid, $new_object->id, $former_datastream->content);
+      // @XXX don't do this at home folks.
+      $new_datastream->content = str_replace($pid, $new_object->id, $former_datastream->content);
     }
     else {
-      $properties_to_set['url'] = $former_datastream->url;
+      $new_datastream->url = $former_datastream->url;
     }
-    array_walk($properties_to_set, 'repository_duplicator_copy_property', &$new_datastream);
+    $new_datastream->label = $former_datastream->label;
+    $new_datastream->state = $former_datastream->state;
+    $new_datastream->mimetype = $former_datastream->mimetype;
+    $new_datastream->versionable = $former_datastream->versionable;
     // Finally, ingest our fully-realized datastream.
     $new_object->ingestDatastream($new_datastream);
   }
