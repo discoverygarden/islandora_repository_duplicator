@@ -226,31 +226,17 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
     $new_object->relationships->add($relationship['predicate']['namespace'], $relationship['predicate']['value'], $relationship['object']['value']);
   }
 
-  // Iterate through the datastreams.
-  // We MUST copy RELS-INT last or Fedora might yell at us for trying to write
-  // RELS-INT statements referencing datastreams that don't exist.
-  $datastreams = array();
-  foreach ($former_object as $old_datastream) {
-    if ($old_datastream->id != 'RELS-INT') {
-      $datastreams[] = $old_datastream->id;
-    }
-  }
-  if (isset($former_object['RELS-INT'])) {
-    $datastreams[] = 'RELS-INT';
-  }
-  // We now have just a list of unloaded datastreams, so we'll have to load
-  // each one we iterate through.
-  foreach ($datastreams as $datastream) {
-    $former_datastream = islandora_datastream_load($datastream, $former_object);
-    // Next, we construct a new datastream. This datastream is not yet ingested,
-    // which will happen after it is set up.
+  // Iterate through the datastreams. Using a 'foreach' on an object allows you
+  // do this; loaded Fedora objects are iterable as loaded datastreams.
+  foreach ($former_object as $former_datastream) {
+    // Construct a new datastream. This datastream is not yet ingested, which
+    // will happen after it is set up.
     $new_datastream = $new_object->constructDatastream($former_datastream->id, $former_datastream->controlGroup);
-    // Inline (X)ML and (M)anaged datastreams store datastream 'content', while
-    // (R)edirect and (E)xternal-referenced datastreams store a datastream
-    // 'url', so we need to make that distinction here.
+    // Inline (X)ML and (M)anaged datastreams store datastream 'content',
+    // while (R)edirect and (E)xternal-referenced datastreams store a
+    // datastream 'url', so we need to make that distinction here.
     if ($former_datastream->controlGroup === 'X' || 'M') {
       // References to the old PID should be replaced with the new PID.
-      // @XXX don't do this at home folks.
       $new_datastream->content = str_replace($pid, $new_object->id, $former_datastream->content);
     }
     else {
@@ -260,6 +246,10 @@ function repository_duplicator_duplicate_object($repository, $pid, $namespace) {
     $new_datastream->state = $former_datastream->state;
     $new_datastream->mimetype = $former_datastream->mimetype;
     $new_datastream->versionable = $former_datastream->versionable;
+    // Copy over the datastream's relationships, if they exist.
+    foreach ($former_datastream->relationships->get() as $relationship) {
+      $new_datastream->relationships->add($relationship['predicate']['namespace'], $relationship['predicate']['value'], $relationship['object']['value']);
+    }
     // Finally, ingest our fully-realized datastream.
     $new_object->ingestDatastream($new_datastream);
   }
